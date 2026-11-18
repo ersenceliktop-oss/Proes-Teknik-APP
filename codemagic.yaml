@@ -9,9 +9,14 @@ workflows:
     scripts:
       - name: Generate native platform projects if missing
         script: |
+          set -e
           if [ ! -d ios ] || [ ! -d android ]; then
             flutter create --platforms=ios,android --org com.proesteknik .
           fi
+          test -f ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Proes PDF Manager'" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 'Proes PDF Manager'" ios/Runner/Info.plist
+          echo "iOS bundle identifier and display name will be checked during Xcode build."
       - name: Set Android compile SDK to 36
         script: |
           set -e
