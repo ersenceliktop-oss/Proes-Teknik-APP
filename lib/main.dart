@@ -1,241 +1,46 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-
-void main() => runApp(const ProesPdfManager());
-
-class ProesPdfManager extends StatelessWidget {
-  const ProesPdfManager({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Proes PDF Manager',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB5121B)),
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-        useMaterial3: true,
-      ),
-      home: const ArchivePage(),
-    );
-  }
+void main()=>runApp(const ProesApp());
+const red=Color(0xFFB5121B), ink=Color(0xFF20242B), muted=Color(0xFF697386), bg=Color(0xFFF4F5F7);
+class ProesApp extends StatelessWidget { const ProesApp({super.key}); @override Widget build(BuildContext context)=>MaterialApp(title:'Proes Teknik Drive Service',debugShowCheckedModeBanner:false,theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:red),scaffoldBackgroundColor:bg),home:const Shell()); }
+class Customer { Customer(this.name,this.city,this.contact); String name,city,contact; }
+class Drive { Drive(this.model,this.power,this.serial,this.site); String model,power,serial,site; }
+class Job { Job(this.title,this.customer,this.status,this.code); String title,customer,status,code; }
+class Shell extends StatefulWidget { const Shell({super.key}); @override State<Shell> createState()=>_ShellState(); }
+class _ShellState extends State<Shell> {
+ int tab=0;
+ final customers=<Customer>[Customer('Makro Metal','Gebze / Kocaeli','Bakım Sorumlusu'),Customer('Örnek Endüstri A.Ş.','Çerkezköy','Elektrik Şefi')];
+ final drives=<Drive>[Drive('ACS880-01','250 kW','880-TR-00124','Makro Metal'),Drive('ACS580-01','45 kW','580-TR-00318','Örnek Endüstri A.Ş.'),Drive('DCS880','900 A','DCS-TR-00042','Makro Metal')];
+ final jobs=<Job>[Job('ACS880 periyodik bakım','Makro Metal','Devam Ediyor','SRV-2026-018'),Job('ACS580 arıza kontrolü','Örnek Endüstri A.Ş.','Yeni Talep','SRV-2026-019'),Job('DCS880 devreye alma','Makro Metal','Tamamlandı','SRV-2026-016')];
+ @override Widget build(BuildContext context) {
+ final pages=<Widget>[Dashboard(customers:customers,drives:drives,jobs:jobs,onTab:(v)=>setState(()=>tab=v),onAdd:_addJob),CustomerPage(items:customers,onAdd:_addCustomer),DrivePage(items:drives,onAdd:_addDrive),JobPage(items:jobs,onAdd:_addJob),const AssistantPage()];
+ return Scaffold(appBar:AppBar(title:Row(children:[Container(width:36,height:36,decoration:BoxDecoration(color:red,borderRadius:BorderRadius.circular(10)),child:const Icon(Icons.electric_bolt,color:Colors.white)),const SizedBox(width:10),const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('PROES TEKNİK',style:TextStyle(fontSize:14,fontWeight:FontWeight.w900,letterSpacing:.7)),Text('DRIVE SERVICE',style:TextStyle(fontSize:10,color:red,fontWeight:FontWeight.w800,letterSpacing:1.5))])]),actions:[IconButton(onPressed:()=>_toast('Bildirimler sonraki aşamada eklenecek.'),icon:const Icon(Icons.notifications_none))]),body:IndexedStack(index:tab,children:pages),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const[NavigationDestination(icon:Icon(Icons.grid_view),label:'Özet'),NavigationDestination(icon:Icon(Icons.business_outlined),label:'Müşteri'),NavigationDestination(icon:Icon(Icons.memory),label:'Sürücü'),NavigationDestination(icon:Icon(Icons.handyman_outlined),label:'Servis'),NavigationDestination(icon:Icon(Icons.auto_awesome_outlined),label:'Asistan')]));
+ }
+ void _toast(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
+ Future<List<String>?> _form(String title,List<String> labels) async { final cs=labels.map((e)=>TextEditingController()).toList(); return showDialog<List<String>>(context:context,builder:(ctx)=>AlertDialog(title:Text(title),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[for(var i=0;i<labels.length;i++) Padding(padding:const EdgeInsets.only(bottom:10),child:TextField(controller:cs[i],decoration:InputDecoration(labelText:labels[i])))])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Vazgeç')),FilledButton(onPressed:()=>Navigator.pop(ctx,cs.map((c)=>c.text.trim()).toList()),child:const Text('Kaydet'))])); }
+ Future<void> _addCustomer() async { final v=await _form('Yeni müşteri',['Firma adı','Şehir / tesis','Yetkili kişi']); if(v==null||v[0].isEmpty)return; setState(()=>customers.add(Customer(v[0],v[1],v[2]))); }
+ Future<void> _addDrive() async { final v=await _form('Yeni sürücü',['Model','Güç (kW / A)','Seri numarası','Müşteri / tesis']); if(v==null||v[0].isEmpty)return; setState(()=>drives.add(Drive(v[0],v[1],v[2],v[3]))); }
+ Future<void> _addJob() async { final v=await _form('Yeni servis kaydı',['Servis başlığı','Müşteri','Sürücü / hata kodu']); if(v==null||v[0].isEmpty)return; setState(()=>jobs.insert(0,Job(v[0],v[1],'Yeni Talep','SRV-2026-'+(jobs.length+20).toString().padLeft(3,'0')))); _toast('Servis kaydı eklendi.'); }
 }
-
-class ArchivePage extends StatefulWidget {
-  const ArchivePage({super.key});
-
-  @override
-  State<ArchivePage> createState() => _ArchivePageState();
+class Dashboard extends StatelessWidget {
+ const Dashboard({super.key,required this.customers,required this.drives,required this.jobs,required this.onTab,required this.onAdd});
+ final List<Customer> customers; final List<Drive> drives; final List<Job> jobs; final ValueChanged<int> onTab; final VoidCallback onAdd;
+ @override Widget build(BuildContext context) { final open=jobs.where((j)=>j.status!='Tamamlandı').length; return ListView(padding:const EdgeInsets.all(16),children:[
+ Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFF262A32),Color(0xFF454B55)]),borderRadius:BorderRadius.circular(20)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('SERVİS OPERASYON MERKEZİ',style:TextStyle(color:Color(0xFFFFB8BC),fontSize:10,fontWeight:FontWeight.w800,letterSpacing:1.3)),const SizedBox(height:12),const Text('Sahadaki gücünüz,\\ncebınızdaki kontrol.',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.w800)),const SizedBox(height:16),FilledButton.icon(onPressed:onAdd,style:FilledButton.styleFrom(backgroundColor:red),icon:const Icon(Icons.add),label:const Text('Yeni servis kaydı'))])),
+ const SizedBox(height:20),const Heading('Operasyon özeti'),const SizedBox(height:10),
+ GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,crossAxisSpacing:10,mainAxisSpacing:10,childAspectRatio:1.7,children:[Metric('Müşteri',customers.length.toString(),Icons.business),Metric('Kayıtlı sürücü',drives.length.toString(),Icons.memory),Metric('Açık servis',open.toString(),Icons.handyman),Metric('Toplam servis',jobs.length.toString(),Icons.assignment)]),
+ const SizedBox(height:20),const Heading('Hızlı erişim'),const SizedBox(height:8),Row(children:[Expanded(child:Quick('Müşteri ekle',Icons.business,()=>onTab(1))),const SizedBox(width:8),Expanded(child:Quick('Sürücü ekle',Icons.memory,()=>onTab(2))),const SizedBox(width:8),Expanded(child:Quick('Arıza asistanı',Icons.support_agent,()=>onTab(4)))]),
+ const SizedBox(height:20),Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[const Heading('Son servis kayıtları'),TextButton(onPressed:()=>onTab(3),child:const Text('Tümünü gör'))]),for(final j in jobs.take(3)) JobCard(job:j),
+ const SizedBox(height:8),Container(padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:const Color(0xFFFFF8E8),borderRadius:BorderRadius.circular(12)),child:const Text('İlk sürüm prototiptir. Kayıtlar henüz kalıcı saklanmaz; hesaplar, bulut eşitleme ve müşteri erişimi sonraki aşamada bağlanacaktır.',style:TextStyle(fontSize:12,color:Color(0xFF74551B))))]); }
 }
-
-class _ArchivePageState extends State<ArchivePage> {
-  Directory? _root;
-  List<String> _folders = [];
-  String _current = '';
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    final docs = await getApplicationDocumentsDirectory();
-    final root = Directory('${docs.path}/ProesPDF');
-    if (!await root.exists()) await root.create(recursive: true);
-    if (!mounted) return;
-    setState(() {
-      _root = root;
-      _loading = false;
-    });
-    await _refresh();
-  }
-
-  Directory get _currentDirectory => Directory(
-        _current.isEmpty ? _root!.path : '${_root!.path}/$_current',
-      );
-
-  Future<void> _refresh() async {
-    if (_root == null) return;
-    await _currentDirectory.create(recursive: true);
-    final entries = await _currentDirectory.list(followLinks: false).toList();
-    if (!mounted) return;
-    setState(() {
-      _folders = entries
-          .where((e) => e is Directory || e.path.toLowerCase().endsWith('.pdf'))
-          .map((e) => e.path.split(Platform.pathSeparator).last)
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    });
-  }
-
-  Future<void> _addPdf() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-      withData: false,
-    );
-    if (result == null || result.files.single.path == null) return;
-    final source = File(result.files.single.path!);
-    final name = result.files.single.name;
-    var target = File('${_currentDirectory.path}/$name');
-    var i = 1;
-    while (await target.exists()) {
-      final dot = name.lastIndexOf('.');
-      final base = dot < 0 ? name : name.substring(0, dot);
-      target = File('${_currentDirectory.path}/${base}_$i.pdf');
-      i++;
-    }
-    await source.copy(target.path);
-    await _refresh();
-  }
-
-  Future<void> _newFolder() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Yeni klasör'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Klasör adı'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Oluştur')),
-        ],
-      ),
-    );
-    if (name == null || name.isEmpty || name.contains('/') || name.contains('\\')) return;
-    await Directory('${_currentDirectory.path}/$name').create(recursive: true);
-    await _refresh();
-  }
-
-  Future<void> _openFolder(String name) async {
-    setState(() => _current = _current.isEmpty ? name : '$_current/$name');
-    await _refresh();
-  }
-
-  Future<void> _rename(String name) async {
-    final controller = TextEditingController(text: name);
-    final updated = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Yeniden adlandır'),
-        content: TextField(controller: controller, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Kaydet')),
-        ],
-      ),
-    );
-    if (updated == null || updated.isEmpty || updated.contains('/') || updated.contains('\\')) return;
-    final oldPath = '${_currentDirectory.path}/$name';
-    final newName = name.toLowerCase().endsWith('.pdf') && !updated.toLowerCase().endsWith('.pdf')
-        ? '$updated.pdf'
-        : updated;
-    await FileSystemEntity.type(oldPath) == FileSystemEntityType.directory
-        ? Directory(oldPath).rename('${_currentDirectory.path}/$newName')
-        : File(oldPath).rename('${_currentDirectory.path}/$newName');
-    await _refresh();
-  }
-
-  Future<void> _delete(String name) async {
-    final path = '${_currentDirectory.path}/$name';
-    if (await FileSystemEntity.type(path) == FileSystemEntityType.directory) {
-      await Directory(path).delete(recursive: true);
-    } else {
-      await File(path).delete();
-    }
-    await _refresh();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isRoot = _current.isEmpty;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFB5121B),
-        foregroundColor: Colors.white,
-        title: const Text('PROES PDF MANAGER', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-        leading: isRoot
-            ? const Icon(Icons.picture_as_pdf)
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () async {
-                  final parts = _current.split('/');
-                  parts.removeLast();
-                  setState(() => _current = parts.join('/'));
-                  await _refresh();
-                },
-              ),
-        actions: [
-          IconButton(tooltip: 'Klasör oluştur', onPressed: _loading ? null : _newFolder, icon: const Icon(Icons.create_new_folder_outlined)),
-          IconButton(tooltip: 'PDF ekle', onPressed: _loading ? null : _addPdf, icon: const Icon(Icons.add)),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(isRoot ? 'Belgelerim' : _current.replaceAll('/', '  /  '),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                ),
-                Expanded(
-                  child: _folders.isEmpty
-                      ? const Center(child: Text('Henüz dosya veya klasör yok.\n+ düğmesiyle PDF ekleyebilir, klasör oluşturabilirsiniz.', textAlign: TextAlign.center))
-                      : ListView.builder(
-                          itemCount: _folders.length,
-                          itemBuilder: (context, index) {
-                            final name = _folders[index];
-                            final path = '${_currentDirectory.path}/$name';
-                            final folder = FileSystemEntity.typeSync(path) == FileSystemEntityType.directory;
-                            return Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              child: ListTile(
-                                leading: Icon(folder ? Icons.folder : Icons.picture_as_pdf,
-                                    color: folder ? const Color(0xFFB5121B) : Colors.red),
-                                title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                onTap: () async {
-                                  if (folder) {
-                                    await _openFolder(name);
-                                  } else {
-                                    await OpenFilex.open(path);
-                                  }
-                                },
-                                trailing: PopupMenuButton<String>(
-                                  onSelected: (value) {
-                                    if (value == 'rename') _rename(name);
-                                    if (value == 'delete') _delete(name);
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(value: 'rename', child: Text('Yeniden adlandır')),
-                                    PopupMenuItem(value: 'delete', child: Text('Sil')),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFFB5121B),
-        foregroundColor: Colors.white,
-        onPressed: _addPdf,
-        icon: const Icon(Icons.upload_file),
-        label: const Text('PDF Ekle'),
-      ),
-    );
-  }
-}
+class CustomerPage extends StatelessWidget { const CustomerPage({super.key,required this.items,required this.onAdd}); final List<Customer> items; final VoidCallback onAdd; @override Widget build(BuildContext context)=>PageFrame(title:'Müşteriler',subtitle:'Firma ve tesis bilgilerini yönetin.',action:'Müşteri ekle',onAdd:onAdd,children:[for(final c in items) DataCard(icon:Icons.business,title:c.name,subtitle:c.city+' • '+c.contact)]); }
+class DrivePage extends StatelessWidget { const DrivePage({super.key,required this.items,required this.onAdd}); final List<Drive> items; final VoidCallback onAdd; @override Widget build(BuildContext context)=>PageFrame(title:'ABB sürücü envanteri',subtitle:'Model, güç, seri numarası ve tesis bilgileri.',action:'Sürücü ekle',onAdd:onAdd,children:[for(final d in items) DataCard(icon:Icons.memory,title:d.model+'  •  '+d.power,subtitle:'SN: '+d.serial+'  |  '+d.site)]); }
+class JobPage extends StatelessWidget { const JobPage({super.key,required this.items,required this.onAdd}); final List<Job> items; final VoidCallback onAdd; @override Widget build(BuildContext context)=>PageFrame(title:'Servis iş emirleri',subtitle:'Arıza, bakım ve devreye alma kayıtları.',action:'Yeni servis',onAdd:onAdd,children:[for(final j in items) JobCard(job:j)]); }
+class AssistantPage extends StatefulWidget { const AssistantPage({super.key}); @override State<AssistantPage> createState()=>_AssistantPageState(); }
+class _AssistantPageState extends State<AssistantPage> { final c=TextEditingController(); String? query; void ask(){if(c.text.trim().isEmpty)return;setState(()=>query=c.text.trim());FocusScope.of(context).unfocus();}
+ @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(18)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(Icons.auto_awesome,color:Color(0xFFFF8C92),size:30),SizedBox(height:12),Text('ABB Teknik Asistan',style:TextStyle(color:Colors.white,fontSize:21,fontWeight:FontWeight.w800)),SizedBox(height:6),Text('Hata kodu, sürücü modeli veya teknik konuyu yazın. Yapay zekâ ve doküman bağlantısı bir sonraki aşamada etkinleştirilecek.',style:TextStyle(color:Colors.white70,height:1.4))])),const SizedBox(height:18),const Heading('Teknik konuda arama'),const SizedBox(height:10),TextField(controller:c,onSubmitted:(_)=>ask(),decoration:InputDecoration(hintText:'Örn. ACS880 A5EA hatası',prefixIcon:const Icon(Icons.search),suffixIcon:IconButton(onPressed:ask,icon:const Icon(Icons.send,color:red)))),const SizedBox(height:18),const Heading('Hızlı konu başlıkları'),for(final s in ['ACS880 hata kodları','Parametre ve devreye alma','Master-Follower uygulaması','Periyodik bakım prosedürü','ABB dokümanlarında arama']) Card(child:ListTile(leading:const Icon(Icons.menu_book,color:red),title:Text(s),trailing:const Icon(Icons.chevron_right),onTap:(){c.text=s;ask();})),if(query!=null) Card(color:const Color(0xFFFFF8E8),child:Padding(padding:const EdgeInsets.all(13),child:Text('Arama isteği: '+query!+'. Canlı teknik kaynak bağlantısı henüz etkin değil.'))),const SizedBox(height:10),const Text('Teknik öneriler ilgili ABB kılavuzları ve yetkili mühendis kontrolüyle doğrulanmalıdır.',style:TextStyle(color:muted,fontSize:12))]); }
+class PageFrame extends StatelessWidget { const PageFrame({super.key,required this.title,required this.subtitle,required this.action,required this.onAdd,required this.children}); final String title,subtitle,action; final VoidCallback onAdd; final List<Widget> children; @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(16),children:[Text(title,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:ink)),const SizedBox(height:4),Text(subtitle,style:const TextStyle(color:muted)),const SizedBox(height:16),FilledButton.icon(onPressed:onAdd,style:FilledButton.styleFrom(backgroundColor:red,padding:const EdgeInsets.all(13)),icon:const Icon(Icons.add),label:Text(action)),const SizedBox(height:12),...children]); }
+class JobCard extends StatelessWidget { const JobCard({super.key,required this.job}); final Job job; @override Widget build(BuildContext context){final done=job.status=='Tamamlandı';final color=done?const Color(0xFF188451):job.status=='Devam Ediyor'?const Color(0xFFB36A13):red;return Card(margin:const EdgeInsets.only(bottom:9),child:Padding(padding:const EdgeInsets.all(13),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(job.title,style:const TextStyle(fontWeight:FontWeight.w700))),Container(padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),decoration:BoxDecoration(color:color.withValues(alpha:.1),borderRadius:BorderRadius.circular(20)),child:Text(job.status,style:TextStyle(color:color,fontSize:10,fontWeight:FontWeight.w800)))]),const SizedBox(height:8),Text(job.customer,style:const TextStyle(color:muted,fontSize:12)),const SizedBox(height:7),Text(job.code,style:const TextStyle(color:muted,fontSize:11))])));}}
+class DataCard extends StatelessWidget { const DataCard({super.key,required this.icon,required this.title,required this.subtitle}); final IconData icon; final String title,subtitle; @override Widget build(BuildContext context)=>Card(margin:const EdgeInsets.only(bottom:9),child:ListTile(leading:CircleAvatar(backgroundColor:red.withValues(alpha:.08),child:Icon(icon,color:red)),title:Text(title,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(subtitle,style:const TextStyle(fontSize:12))));}
+class Metric extends StatelessWidget { const Metric(this.label,this.value,this.icon,{super.key}); final String label,value; final IconData icon; @override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Icon(icon,color:red),Text(value,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800)),Text(label,style:const TextStyle(fontSize:11,color:muted))]));}
+class Quick extends StatelessWidget { const Quick(this.label,this.icon,this.tap,{super.key}); final String label; final IconData icon; final VoidCallback tap; @override Widget build(BuildContext context)=>InkWell(onTap:tap,child:Container(padding:const EdgeInsets.symmetric(vertical:14,horizontal:4),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12)),child:Column(children:[Icon(icon,color:red),const SizedBox(height:6),Text(label,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w700))])));}
+class Heading extends StatelessWidget { const Heading(this.text,{super.key}); final String text; @override Widget build(BuildContext context)=>Text(text,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800,color:ink));}
