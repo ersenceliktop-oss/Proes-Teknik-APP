@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#b5121b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Proes PDF">
+  <meta name="description" content="Proes Teknik çevrimdışı PDF arşivi">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <title>PROES PDF MANAGER</title>
+  <style>
+    :root{color-scheme:light;--red:#b5121b;--ink:#202124;--muted:#70757d;--bg:#f4f5f7;--line:#e6e7eb}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+    header{background:var(--red);color:#fff;padding:15px 16px 14px;position:sticky;top:0;z-index:3;box-shadow:0 2px 8px #0002}
+    .top{display:flex;align-items:center;gap:10px}.brand{font-size:17px;font-weight:800;letter-spacing:.5px;flex:1}.top button{border:1px solid #ffffff66;background:#ffffff18;color:white;border-radius:10px;padding:9px 11px;font-size:19px}
+    main{max-width:760px;margin:auto;padding:16px 13px 100px}.crumb{font-size:15px;font-weight:700;margin:4px 3px 14px;overflow-wrap:anywhere}
+    .hint{color:var(--muted);font-size:13px;margin:0 3px 14px}.items{display:grid;gap:9px}
+    .item{background:white;border:1px solid var(--line);border-radius:13px;padding:13px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px #00000008}
+    .glyph{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#fff0f0;color:var(--red);font-size:22px;flex:none}
+    .name{font-size:14px;font-weight:650;overflow-wrap:anywhere;flex:1;min-width:0}.kind{font-size:11px;color:var(--muted);margin-top:4px}
+    .item button{border:0;background:transparent;color:#555;padding:8px;font-size:19px}
+    .empty{background:#fff;border:1px dashed #cfd2d8;border-radius:14px;padding:35px 18px;text-align:center;color:var(--muted);line-height:1.55}
+    .fab{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));right:18px;background:var(--red);color:#fff;border:0;border-radius:28px;padding:15px 21px;font-weight:700;font-size:14px;box-shadow:0 5px 16px #0003;z-index:4}
+    .actions{display:flex;gap:8px;margin-bottom:13px}.actions button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 13px;color:#333;font-weight:600}
+    #picker{display:none}.status{font-size:12px;color:var(--muted);text-align:center;margin-top:22px}
+    .toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%);background:#222;color:white;padding:11px 16px;border-radius:20px;font-size:13px;display:none;z-index:8;max-width:90%;text-align:center}
+  </style>
+</head>
+<body>
+<header><div class="top"><button id="back" aria-label="Geri" style="display:none">‹</button><div class="brand">PROES PDF MANAGER</div><button id="newFolder" aria-label="Klasör oluştur">▣+</button><button id="addPdf" aria-label="PDF ekle">＋</button></div></header>
+<main>
+  <div class="crumb" id="crumb">Belgelerim</div>
+  <div class="hint">PDF arşiviniz bu cihazda saklanır. İlk açılıştan sonra internet olmadan da kullanabilirsiniz.</div>
+  <div class="actions"><button id="installHelp">Ana ekrana ekle</button><button id="refresh">Yenile</button></div>
+  <input id="picker" type="file" accept="application/pdf,.pdf" multiple>
+  <section class="items" id="items"></section>
+  <div class="status">PROES TEKNİK · Çevrimdışı PDF Arşivi</div>
+</main>
+<button class="fab" id="fab">＋ PDF Ekle</button><div class="toast" id="toast"></div>
+<script>
+const DB_NAME='proes-pdf-manager', DB_VERSION=1, STORE='entries';
+let db, currentPath=[];
+const $=id=>document.getElementById(id);
+function notify(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(notify.timer);notify.timer=setTimeout(()=>t.style.display='none',2600)}
+function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const s=r.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});s.createIndex('parent','parent',{unique:false})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function allEntries(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function saveEntry(entry){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).add(entry);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function updateEntry(entry){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(entry);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function removeEntry(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function parentKey(){return currentPath.join('/')}
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function render(){
+ const all=await allEntries(), parent=parentKey();
+ const rows=all.filter(x=>x.parent===parent).sort((a,b)=>a.type===b.type?(a.name||'').localeCompare(b.name||'','tr'):a.type==='folder'?-1:1);
+ $('crumb').textContent=currentPath.length?'Belgelerim  /  '+currentPath.join('  /  '):'Belgelerim';
+ $('back').style.display=currentPath.length?'block':'none';
+ const area=$('items');area.innerHTML='';
+ if(!rows.length){area.innerHTML='<div class="empty">Bu klasörde henüz dosya veya klasör yok.<br>＋ düğmesiyle PDF ekleyebilir, ▣+ ile klasör oluşturabilirsiniz.</div>';return}
+ for(const item of rows){
+  const el=document.createElement('article');el.className='item';
+  el.innerHTML='<div class="glyph">'+(item.type==='folder'?'📁':'PDF')+'</div><div class="name">'+esc(item.name)+'<div class="kind">'+(item.type==='folder'?'Klasör':'PDF belgesi')+'</div></div><button aria-label="İşlemler">⋮</button>';
+  el.querySelector('.name').addEventListener('click',()=>item.type==='folder'?(currentPath.push(item.name),render()):openPdf(item));
+  el.querySelector('.glyph').addEventListener('click',()=>item.type==='folder'?(currentPath.push(item.name),render()):openPdf(item));
+  el.querySelector('button').addEventListener('click',()=>menu(item));area.appendChild(el);
+ }
+}
+async function menu(item){
+ const choice=prompt(item.name+'\nİşlem seçin: 1 = Yeniden adlandır, 2 = Sil');
+ if(choice==='1'){const n=prompt('Yeni ad:',item.name);if(!n||!n.trim()||n.includes('/')||n.includes('\\'))return;item.name=n.trim();if(item.type==='pdf'&&!item.name.toLowerCase().endsWith('.pdf'))item.name+='.pdf';await updateEntry(item);notify('Ad güncellendi');await render()}
+ if(choice==='2'&&confirm('"'+item.name+'" silinsin mi?'+(item.type==='folder'?' İçindeki tüm kayıtlar da silinir.':''))){await deleteTree(item);notify('Silindi');await render()}
+}
+async function deleteTree(item){if(item.type==='folder'){const all=await allEntries();for(const child of all.filter(x=>x.parent===(item.parent?item.parent+'/':'')+item.name))await deleteTree(child)}await removeEntry(item.id)}
+async function addFolder(){const name=prompt('Yeni klasör adı:');if(!name||!name.trim()||name.includes('/')||name.includes('\\'))return;await saveEntry({type:'folder',name:name.trim(),parent:parentKey()});await render()}
+async function addPdfs(files){for(const file of files){if(!file.name.toLowerCase().endsWith('.pdf'))continue;let name=file.name,all=await allEntries(),i=1;while(all.some(x=>x.parent===parentKey()&&x.name===name)){const base=file.name.replace(/\.pdf$/i,'');name=base+'_'+i+'.pdf';i++}await saveEntry({type:'pdf',name,parent:parentKey(),blob:file,mime:file.type||'application/pdf',size:file.size})}await render();notify('PDF cihazınıza kaydedildi')}
+function openPdf(item){const url=URL.createObjectURL(item.blob);const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+$('addPdf').onclick=$('fab').onclick=()=>$('picker').click();
+$('picker').onchange=async e=>{if(e.target.files?.length)await addPdfs([...e.target.files]);e.target.value=''};
+$('newFolder').onclick=addFolder;$('refresh').onclick=render;
+$('back').onclick=()=>{currentPath.pop();render()};
+$('installHelp').onclick=()=>alert('iPhone: Safari paylaşım düğmesine dokunun, "Ana Ekrana Ekle" seçeneğini seçin. Android: Tarayıcı menüsünden "Uygulamayı yükle" veya "Ana ekrana ekle" seçin.');
+(async()=>{try{db=await openDb();await render();if('serviceWorker'in navigator)await navigator.serviceWorker.register('./sw.js')}catch(e){console.error(e);notify('Depolama başlatılamadı. Tarayıcı ayarlarını kontrol edin.')}})();
+</script>
+</body></html>
