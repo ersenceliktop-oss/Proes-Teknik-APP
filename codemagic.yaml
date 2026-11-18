@@ -13,6 +13,8 @@ workflows:
           if [ ! -d ios ] || [ ! -d android ]; then
             flutter create --platforms=ios,android --org com.proesteknik .
           fi
+          # flutter create may generate a template test that references a package not used by this app.
+          rm -f test/widget_test.dart
           test -f ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Proes Drive Service'" ios/Runner/Info.plist || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 'Proes Drive Service'" ios/Runner/Info.plist
       - name: Install Flutter dependencies
