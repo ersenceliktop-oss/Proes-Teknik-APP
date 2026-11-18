@@ -1,21 +1,21 @@
 # Proes PDF Manager
 
-Proes Teknik için çevrimdışı PDF arşiv uygulaması.
+Proes Teknik için çevrimdışı PDF arşivi.
 
-## Hedef
-- iOS ve Android
-- Flutter ortak kod tabanı
-- Sunucu veya bilgisayar gerektirmeden çevrimdışı kullanım
-- PDF'leri uygulamanın özel yerel depolama alanına kopyalama
-- Klasör ve alt klasör oluşturma
-- PDF ekleme, açma, yeniden adlandırma ve silme
+## Kullanım
+- PWA sürümü `docs/` klasöründedir.
+- GitHub Pages ayarlarında **Deploy from a branch** seçilip `main` ve `/docs` seçildiğinde web uygulaması yayınlanır.
+- iPhone'da yayınlanan adres Safari ile açılır; Paylaş > Ana Ekrana Ekle seçilir.
+- PDF dosyaları tarayıcının IndexedDB alanında cihazda saklanır; uygulamanın ilk açılışından sonra uygulama kabuğu çevrimdışı açılabilir.
 
-## Geliştirme
-Flutter SDK kurulu bir ortamda:
+## Özellikler
+- Klasör ve alt klasörler
+- PDF ekleme ve cihazda saklama
+- PDF açma, yeniden adlandırma ve silme
+- Çevrimdışı uygulama kabuğu (service worker)
 
-```bash
-flutter pub get
-flutter run
-```
-
-> Not: Bu depo kaynak kodunu içerir. iPhone'a kurulabilir imzalı paket üretmek için Apple imzalama yapılandırması ve uygun Apple Developer hesabı gerekir.
+## Notlar
+- Bu sürüm App Store uygulaması değildir; iPhone ana ekranından çalışan web uygulamasıdır.
+- Tarayıcı verileri temizlenirse yerel PDF arşivi silinebilir. Önemli belgelerin ayrıca yedeğini tutun.
+- iOS depolama alanı yönetimi nedeniyle çok büyük arşivlerde tarayıcı kısıtlamaları olabilir.
+- Flutter kaynak kodu ve Android/iOS yerel derleme yapılandırması korunmuştur.
